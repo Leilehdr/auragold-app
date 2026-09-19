@@ -5,11 +5,9 @@ import pandas as pd
 import streamlit as st
 
 # Configuração da Página do App
-st.set_page_config(
-    page_title="Aura Gold — Gestão Executiva", page_icon="⚜️", layout="wide"
-)
+st.set_page_config(page_title="Aura Gold — Gestão Executiva", page_icon="⚜️", layout="wide")
 
-# Arquivo para salvamento local no notebook
+# Arquivo para salvamento local no notebook/nuvem
 DB_FILE = "auragold_database.json"
 
 def carregar_dados():
@@ -28,7 +26,7 @@ def salvar_dados(dados):
 if "emprestimos" not in st.session_state:
     st.session_state["emprestimos"] = carregar_dados()
 
-# Estilo Visual: Preto Absoluto e Dourado Luxo (#D4AF37) com Alertas em Vermelho Vivo
+# Estilo Visual: Preto Absoluto e Dourado Luxo com Alertas em Vermelho Vivo
 st.markdown("""
     <style>
     .stApp {
@@ -133,7 +131,7 @@ if menu == "➕ Alimentar (Cadastrar)":
                 valor_total = valor_emprestado + (valor_emprestado * (taxa_juros / 100))
                 
                 novo_registro = {
-                    "id": datetime.now().strftime("%Y%m%d%H%M%S"),
+                    "id": datetime.now().strftime("%Y%m%d%H%M%S") + str(len(st.session_state["emprestimos"])),
                     "cliente": nome_cliente,
                     "valor_emprestado": valor_emprestado,
                     "juros": taxa_juros,
@@ -145,7 +143,7 @@ if menu == "➕ Alimentar (Cadastrar)":
                 
                 st.session_state["emprestimos"].append(novo_registro)
                 salvar_dados(st.session_state["emprestimos"])
-                st.success(f"Operação de {nome_cliente} registrada e salva com segurança no seu notebook!")
+                st.success(f"Operação de {nome_cliente} registrada com sucesso!")
             else:
                 st.warning("Preencha o nome do cliente e um valor válido.")
 
@@ -174,15 +172,13 @@ elif menu == "📅 Consulta Diária":
                         <div class="atraso-card">
                             <h3 style="color: #ff4d4d !important; margin: 0;">🚨 CLIENTE EM ATRASO: {item['cliente']}</h3>
                             <p style="margin: 6px 0 0 0; color: #ffcccc;"><b>Valor Devido:</b> R$ {item['valor_total']:.2f} | <b>Parcelas:</b> {item['parcelas']}x | <b>Juros:</b> {item['juros']}%</p>
-                            <p style="margin: 4px 0 0 0; color: #ff3333;"><b>Status:</b> ATRASADO (Requer Cobrança)</p>
                         </div>
                     """, unsafe_allow_html=True)
                 else:
                     st.markdown(f"""
                         <div class="normal-card">
                             <h3 style="color: #D4AF37 !important; margin: 0;">👤 Cliente: {item['cliente']}</h3>
-                            <p style="margin: 6px 0 0 0;"><b>Valor a Pagar:</b> R$ {item['valor_total']:.2f} | <b>Parcelas:</b> {item['parcelas']}x | <b>Juros:</b> {item['juros']}%</p>
-                            <p style="margin: 4px 0 0 0;"><b>Status:</b> <span style="color: #D4AF37;">{item['status']}</span></p>
+                            <p style="margin: 6px 0 0 0;"><b>Valor a Pagar:</b> R$ {item['valor_total']:.2f} | <b>Parcelas:</b> {item['parcelas']}x | <b>Status:</b> <span style="color: #D4AF37;">{item['status']}</span></p>
                         </div>
                     """, unsafe_allow_html=True)
         else:
@@ -197,7 +193,7 @@ elif menu == "📊 Desempenho & Dashboard":
     dados = st.session_state["emprestimos"]
     
     if not dados:
-        st.info("Alimente dados no sistema para gerar o relatório de desempenho.")
+        st.info("Alimente dados no sistema para gerar o relatório.")
     else:
         df = pd.DataFrame(dados)
         
@@ -243,19 +239,21 @@ elif menu == "📊 Desempenho & Dashboard":
         st.bar_chart(chart_data.set_index("Métrica"))
 
 # ==========================================
-# 4. GERENCIAR E ATUALIZAR STATUS
+# 4. GERENCIAR E ATUALIZAR STATUS / EXCLUIR
 # ==========================================
 elif menu == "⚙️ Gerenciar e Atualizar Status":
-    st.header("⚙️ Atualização Diária e Gestão de Clientes")
+    st.header("⚙️ Gestão, Atualização e Exclusão de Registros")
     
     dados = st.session_state["emprestimos"]
     
     if not dados:
         st.info("Nenhum registro para gerenciar.")
     else:
+        st.write("Abra o menu abaixo do cliente que deseja alterar o status ou apagar:")
         for idx, item in enumerate(dados):
             prefixo = "🚨 [ATRASADO] " if item["status"] == "Atrasado" else ""
-            with st.expander(f"{prefixo}Cliente: {item['cliente']} | Data: {item['data']} | Status: {item['status']}"):
+            with st.expander(f"{prefixo}Cliente: {item['cliente']} | Data: {item['data']} | Valor: R$ {item['valor_total']:.2f}"):
+                
                 novo_status = st.selectbox(
                     "Atualizar Status",
                     ["Pendente", "Pago", "Atrasado"],
@@ -263,9 +261,21 @@ elif menu == "⚙️ Gerenciar e Atualizar Status":
                     key=f"status_up_{idx}"
                 )
                 
-                if st.button("💾 Salvar Alteração", key=f"btn_up_{idx}"):
-                    dados[idx]["status"] = novo_status
-                    st.session_state["emprestimos"] = dados
-                    salvar_dados(dados)
-                    st.success("Status atualizado com sucesso!")
-                    st.rerun()
+                col_btn1, col_btn2 = st.columns(2)
+                
+                with col_btn1:
+                    if st.button("💾 Salvar Alteração", key=f"btn_up_{idx}"):
+                        dados[idx]["status"] = novo_status
+                        st.session_state["emprestimos"] = dados
+                        salvar_dados(dados)
+                        st.success("Status atualizado com sucesso!")
+                        st.rerun()
+                        
+                with col_btn2:
+                    if st.button("🗑️ Excluir Registro", key=f"btn_del_{idx}", type="primary"):
+                        # Remove o item da lista
+                        dados.pop(idx)
+                        st.session_state["emprestimos"] = dados
+                        salvar_dados(dados)
+                        st.success("Registro apagado com sucesso!")
+                        st.rerun()
